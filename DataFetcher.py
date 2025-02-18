@@ -59,9 +59,7 @@ class DataFetcher:
 
         final_data = []
 
-        for ticker in self.tickers:
-            print(f"Fetching data for {ticker}...")
-            
+        for ticker in self.tickers:            
             cik = self.get_cik(ticker)
             if not cik:
                 print(f"❌ CIK not found for {ticker}. Skipping...")
@@ -79,21 +77,3 @@ class DataFetcher:
 
         return pd.DataFrame(final_data)
 
-
-# ==================== Example Usage ==================== #
-fetcher = DataFetcher()
-
-# Step 1: Select Tickers
-fetcher.set_tickers("CRWD", "MSFT", "GOOGL", "AMZN")
-
-# Step 2: Select Metrics (Pass True for ones you want)
-fetcher.set_metrics(
-    AccountsReceivableNetCurrent=True,
-    RevenueFromContractWithCustomerExcludingAssessedTax=True,
-)
-
-# Step 3: Fetch Data
-df = fetcher.fetch_data()
-
-# Display the DataFrame
-print(df.head())

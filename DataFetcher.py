@@ -76,4 +76,3 @@ class DataFetcher:
             final_data.append(metrics_data)
 
         return pd.DataFrame(final_data)
-

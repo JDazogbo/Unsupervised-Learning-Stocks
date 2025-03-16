@@ -39,7 +39,12 @@ for i, company in sp500_df.iterrows():
     
     # Get financial data with proper date handling
     financial_data = yf.Ticker(ticker).financials
+    
+    if financial_data is None or financial_data.empty:
+        continue
+
     financial_data.columns = pd.to_datetime(financial_data.columns).strftime('%Y')
+
         
     # Create row data with NaN initialization
     row_data = {col: np.nan for col in financials_df.columns}
@@ -60,10 +65,29 @@ print(financials_df.head(10), "\n")
 print(financials_df.info(), "\n")
 print(financials_df.describe(), "\n")
 
-# Drop Columns with > 40% Missing Data
-threshold = 0.4 * len(financials_df)
+# Drop Columns with > 25% Missing Data
+threshold = 0.25 * len(financials_df)
 financials_df = financials_df.dropna(axis=1, thresh=threshold)
 print("Remaining columns after dropping:", financials_df.shape[1], "\n")
+
+# Fill missing values using recent years then median
+metric_groups = {}
+for col in financials_df.columns:
+    if '-' in col and col not in ['Ticker', 'Industry']:
+        _, metric = col.split('-', 1)
+        metric_groups.setdefault(metric, []).append(col)
+
+for metric, cols in metric_groups.items():
+    # Sort columns by year descending
+    sorted_cols = sorted(cols, key=lambda x: x.split('-')[0], reverse=True)
+    
+    # Backward fill using older years
+    financials_df[sorted_cols] = financials_df[sorted_cols].bfill(axis=1)
+    
+    # Calculate median for remaining NAs
+    all_values = financials_df[sorted_cols].values.flatten()
+    metric_median = np.nanmedian(all_values)
+    financials_df[sorted_cols] = financials_df[sorted_cols].fillna(metric_median)
 
 # Removing Highly Correlated Columns (keeping one from each pair)
 corr_matrix = financials_df.corr(numeric_only=True).abs()
@@ -136,13 +160,10 @@ plt.show()
 # Correlation Matrix Heatmap
 plt.figure(figsize=(14, 10))
 correlation_matrix = financials_df.corr(numeric_only=True)
-
-sns.heatmap(
-    correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5, vmin=-1, vmax=1
-)
+sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5, vmin=-1, vmax=1)
 plt.title("Correlation Matrix of Financial Metrics", fontsize=14, fontweight="bold")
-plt.xticks(rotation=30, ha="right", fontsize=10)
-plt.yticks(rotation=30, fontsize=10)
+plt.xticks(ha="right", fontsize=5)
+plt.yticks(fontsize=5)
 plt.show()
 
 '''
@@ -159,3 +180,5 @@ data_asset = data_source.add_dataframe_asset(name="pd dataframe asset")
 batch_definition = data_asset.add_batch_definition_whole_dataframe("batch definition")
 batch = batch_definition.get_batch(batch_parameters={"dataframe": financials_df})'
 '''
+
+financials_df.to_csv("data.csv", index=False)

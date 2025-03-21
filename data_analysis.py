@@ -5,6 +5,8 @@ import great_expectations as gx
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+###### Data Collection ######
+
 # URL of the Wikipedia page
 url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
 
@@ -39,10 +41,6 @@ for i, company in sp500_df.iterrows():
     
     # Get financial data with proper date handling
     financial_data = yf.Ticker(ticker).financials
-    
-    if financial_data is None or financial_data.empty:
-        continue
-
     financial_data.columns = pd.to_datetime(financial_data.columns).strftime('%Y')
 
         
@@ -63,14 +61,62 @@ for i, company in sp500_df.iterrows():
 
 print(financials_df.head(10), "\n")
 print(financials_df.info(), "\n")
-print(financials_df.describe(), "\n")
+print(financials_df.describe(), "\n\n")
 
-# Drop Columns with > 25% Missing Data
-threshold = 0.25 * len(financials_df)
-financials_df = financials_df.dropna(axis=1, thresh=threshold)
-print("Remaining columns after dropping:", financials_df.shape[1], "\n")
 
-# Fill missing values using recent years then median
+###### Data Cleaning ######
+
+# Analyse the data collected and clean the data
+# Creates a data context to manage expectations and validations
+context = gx.get_context()
+
+# Connects the pandas DataFrame to the data context and creates a batch to validate
+data_source = context.data_sources.add_pandas("pandas")
+data_asset = data_source.add_dataframe_asset(name="pd dataframe asset")
+
+# Defines the batch, specifying that the whole DataFrame should be validated
+batch_definition = data_asset.add_batch_definition_whole_dataframe("batch definition")
+batch = batch_definition.get_batch(batch_parameters={"dataframe": financials_df})
+
+# Create various expectations for different columns in the dataset
+expectation1 = gx.expectations.ExpectColumnValuesToBeUnique(column="Ticker")
+
+expectation2 = gx.expectations.ExpectColumnValuesToNotBeNull(column="2024-Net Income")
+
+expectation3 = gx.expectations.ExpectColumnValuesToNotBeNull(column="2024-Operating Expense")
+
+expectation4 = gx.expectations.ExpectColumnValuesToNotBeNull(column="2024-Operating Expense")
+
+expectation5 = gx.expectations.ExpectColumnValuesToBeInSet(column="Industry", value_set=["Information Technology", "Health Care", "Financials", "Industrials", "Consumer Discretionary", "Consumer Staples", "Utilities", "Real Estate", "Energy", "Communication Services", "Materials"])
+
+expectation6 = gx.expectations.ExpectColumnValuesToBeBetween(column="2024-Tax Rate For Calcs", min_value=0, max_value=1)
+
+expectation7 = gx.expectations.ExpectTableRowCountToEqual(value=503)
+
+expectation8= gx.expectations.ExpectColumnValuesToBeOfType(column="2024-Total Revenue", type_="float64")
+
+expectation9 = gx.expectations.ExpectColumnValuesToBeOfType(column="2024-Gross Profit", type_="float64")
+
+expectation10 = gx.expectations.ExpectColumnValuesToNotBeNull(column="2024-Operating Revenue")
+
+expectation11 = gx.expectations.ExpectTableColumnCountToEqual(value=len(expected_columns)*5 + 2)
+
+# Prints the validation result for the batch
+for expectation in [expectation1, expectation2, expectation3, expectation4, expectation5, expectation6, expectation7, expectation8, expectation9, expectation10, expectation11]:
+    validation_result = batch.validate(expectation)
+    print(f"{validation_result}\n")
+
+# Missing Values Heatmap
+print(financials_df.info(), "\n")
+plt.figure(figsize=(15, 6))
+sns.heatmap(financials_df.isnull(), cbar=False, cmap='viridis')
+plt.title("Missing Values Heatmap Not Cleaned")
+plt.show()
+
+# Drop rows with 30% or more missing values
+financials_df = financials_df.dropna(axis=0, thresh=0.3*len(financials_df.columns))
+
+# Fill missing values using recent years
 metric_groups = {}
 for col in financials_df.columns:
     if '-' in col and col not in ['Ticker', 'Industry']:
@@ -83,11 +129,29 @@ for metric, cols in metric_groups.items():
     
     # Backward fill using older years
     financials_df[sorted_cols] = financials_df[sorted_cols].bfill(axis=1)
-    
+
+# Drop Columns with > 30% Missing Data
+threshold = 0.3 * len(financials_df)
+financials_df = financials_df.dropna(axis=1, thresh=threshold)
+print(financials_df.info(), "\n")
+
+# Fill missing values using recent years
+metric_groups = {}
+for col in financials_df.columns:
+    if '-' in col and col not in ['Ticker', 'Industry']:
+        _, metric = col.split('-', 1)
+        metric_groups.setdefault(metric, []).append(col)
+
+# Fill the rest missing values using median
+for metric, cols in metric_groups.items():
     # Calculate median for remaining NAs
-    all_values = financials_df[sorted_cols].values.flatten()
+    existing_cols = [c for c in cols if c in financials_df.columns]
+    if len(existing_cols) == 0:
+        continue
+    all_values = financials_df[existing_cols].values.flatten()
     metric_median = np.nanmedian(all_values)
-    financials_df[sorted_cols] = financials_df[sorted_cols].fillna(metric_median)
+    financials_df[existing_cols] = financials_df[existing_cols].fillna(metric_median)
+
 
 # Removing Highly Correlated Columns (keeping one from each pair)
 corr_matrix = financials_df.corr(numeric_only=True).abs()
@@ -124,6 +188,47 @@ for i, j in zip(rows, cols):
 # Drop older columns while keeping most recent
 financials_df = financials_df.drop(columns=list(to_drop))
 print("Remaining columns after dropping:", financials_df.shape[1], "\n")
+
+
+###### Data Analysis ######
+
+# Analyse the cleaned data
+# Creates a data context to manage expectations and validations
+context = gx.get_context()
+
+# Connects the pandas DataFrame to the data context and creates a batch to validate
+data_source = context.data_sources.add_pandas("pandas")
+data_asset = data_source.add_dataframe_asset(name="pd dataframe asset")
+
+# Defines the batch, specifying that the whole DataFrame should be validated
+batch_definition = data_asset.add_batch_definition_whole_dataframe("batch definition")
+batch = batch_definition.get_batch(batch_parameters={"dataframe": financials_df})
+
+# Create various expectations for different columns in the dataset
+expectation1 = gx.expectations.ExpectColumnValuesToBeUnique(column="Ticker")
+
+expectation2 = gx.expectations.ExpectColumnValuesToNotBeNull(column="2024-Net Interest Income")
+
+expectation3 = gx.expectations.ExpectColumnValuesToNotBeNull(column="2024-Operating Expense")
+
+expectation4 = gx.expectations.ExpectColumnValuesToNotBeNull(column="2024-Operating Expense")
+
+expectation5 = gx.expectations.ExpectColumnValuesToBeInSet(column="Industry", value_set=["Information Technology", "Health Care", "Financials", "Industrials", "Consumer Discretionary", "Consumer Staples", "Utilities", "Real Estate", "Energy", "Communication Services", "Materials"])
+
+expectation6 = gx.expectations.ExpectColumnValuesToBeBetween(column="2024-Tax Rate For Calcs", min_value=0, max_value=1)
+
+expectation7 = gx.expectations.ExpectTableRowCountToBeBetween(min_value=470, max_value=503)
+
+expectation8= gx.expectations.ExpectColumnValuesToBeOfType(column="2024-Total Revenue", type_="float64")
+
+expectation9 = gx.expectations.ExpectColumnValuesToBeOfType(column="2024-Operating Expense", type_="float64")
+
+expectation10 = gx.expectations.ExpectTableColumnCountToBeBetween(min_value=20, max_value=50)
+
+# Prints the validation result for the batch
+for expectation in [expectation1, expectation2, expectation3, expectation4, expectation5, expectation6, expectation7, expectation8, expectation9, expectation10]:
+    validation_result = batch.validate(expectation)
+    print(f"{validation_result}\n")
 
 # Missing Values Heatmap
 print(financials_df.info(), "\n")
@@ -165,20 +270,5 @@ plt.title("Correlation Matrix of Financial Metrics", fontsize=14, fontweight="bo
 plt.xticks(ha="right", fontsize=5)
 plt.yticks(fontsize=5)
 plt.show()
-
-'''
-# Analyse the data collected and clean the data
-
-# Creates a data context to manage expectations and validations
-context = gx.get_context()
-
-# Connects the pandas DataFrame to the data context and creates a batch to validate
-data_source = context.data_sources.add_pandas("pandas")
-data_asset = data_source.add_dataframe_asset(name="pd dataframe asset")
-
-# Defines the batch, specifying that the whole DataFrame should be validated
-batch_definition = data_asset.add_batch_definition_whole_dataframe("batch definition")
-batch = batch_definition.get_batch(batch_parameters={"dataframe": financials_df})'
-'''
 
 financials_df.to_csv("data.csv", index=False)

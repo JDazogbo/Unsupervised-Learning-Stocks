@@ -32,7 +32,7 @@ financial_metrics = apple_finance.index.values
 expected_columns = [f"{year}-{metric}" for year in years for metric in financial_metrics]
 
 # Initialize DataFrame with proper structure
-financials_df = pd.DataFrame(columns=['Ticker', 'Industry'] + expected_columns)
+financials_df = pd.DataFrame(columns=['Ticker', 'Industry'] + expected_columns + [f"{year}-{metric}_pct" for year in years for metric in financial_metrics])
 
 # Iterate through each company in the S&P 500
 for i, company in sp500_df.iterrows():
@@ -42,7 +42,6 @@ for i, company in sp500_df.iterrows():
     # Get financial data with proper date handling
     financial_data = yf.Ticker(ticker).financials
     financial_data.columns = pd.to_datetime(financial_data.columns).strftime('%Y')
-
         
     # Create row data with NaN initialization
     row_data = {col: np.nan for col in financials_df.columns}
@@ -51,10 +50,18 @@ for i, company in sp500_df.iterrows():
     # Fill available data
     for year in years:
         if year in financial_data.columns:
+            # Get total revenue for this year
+            total_revenue = financial_data.loc['Total Revenue', year] if 'Total Revenue' in financial_data.index else np.nan
+            
             for metric in financial_metrics:
                 if metric in financial_data.index:
                     col_name = f"{year}-{metric}"
-                    row_data[col_name] = financial_data.loc[metric, year]
+                    value = financial_data.loc[metric, year]
+                    row_data[col_name] = value
+                    
+                    # Calculate percentage of total revenue if total revenue exists
+                    if total_revenue and not pd.isna(total_revenue) and not pd.isna(value):
+                        row_data[f"{year}-{metric}_pct"] = (value / total_revenue) * 100
         
     # Append to DataFrame
     financials_df = pd.concat([financials_df, pd.DataFrame([row_data])], ignore_index=True)

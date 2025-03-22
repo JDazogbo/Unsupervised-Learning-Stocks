@@ -50,15 +50,7 @@ class StockClusterer:
         # Calculate explained variance ratio
         explained_variance_ratio = self.svd_model.explained_variance_ratio_
         cumulative_variance_ratio = np.cumsum(explained_variance_ratio)
-        
-        # Plot explained variance
-        plt.figure(figsize=(10, 6))
-        plt.plot(range(1, len(cumulative_variance_ratio) + 1), cumulative_variance_ratio, 'bo-')
-        plt.xlabel('Number of Components')
-        plt.ylabel('Cumulative Explained Variance Ratio')
-        plt.title('SVD: Cumulative Explained Variance')
-        plt.grid(True)
-        plt.show()
+
         
         print("\nExplained variance ratio for each component:")
         for i, (var, cum_var) in enumerate(zip(explained_variance_ratio, cumulative_variance_ratio), 1):
@@ -265,16 +257,29 @@ if __name__ == "__main__":
     
     # Example features to use (can be any number of features)
     FEATURES_TO_USE = [
-        '2024-Net Income From Continuing Operation Net Minority Interest',
-        '2024-Normalized EBITDA',
+        # Current Data, to be compared
+        # '2024-Net Income From Continuing Operation Net Minority Interest',
+        # '2024-Normalized EBITDA',
         '2024-Operating Expense',
         '2024-Net Interest Income',
         '2024-Diluted EPS',
-        '2024-Tax Rate For Calcs'
+
+        # # Historical Data, for trends over time
+        '2023-Tax Rate For Calcs',
+        '2022-Tax Rate For Calcs',
+        '2021-Operating Expense',
+        # '2021-Tax Rate For Calcs',
+
+        # Normalized Data, for comparison
+        '2024-Net Income From Continuing Operation Net Minority Interest_pct',
+        '2024-Operating Expense_pct',
+        '2024-Net Interest Income_pct',
     ]
+
+
     
     # Initialize and run clustering with 2 components for visualization
-    clusterer = StockClusterer(DATA_PATH, features_to_use=FEATURES_TO_USE, max_k=10, n_components=2)
+    clusterer = StockClusterer(DATA_PATH, features_to_use=FEATURES_TO_USE, max_k=20, n_components=2)
     
     # Load and prepare data
     clusterer.load_and_prepare_data()

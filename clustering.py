@@ -8,19 +8,19 @@ import seaborn as sns
 from sklearn.decomposition import TruncatedSVD
 
 class StockClusterer:
-    def __init__(self, data_path, features_to_use=None, max_k=10, n_components=None):
+    def __init__(self, data_path, features_to_use=None, max_k=10, n_components=2):
         """
         Initialize the clusterer with data path and features to use
         
         Args:
             data_path (str): Path to the CSV data file
-            features_to_use (list): List of column names to use for clustering (2-4 features)
+            features_to_use (list): List of column names to use for clustering (can be any number of features)
             max_k (int): Maximum number of clusters to try in elbow method
-            n_components (int): Number of components to keep after SVD reduction
+            n_components (int): Number of components to keep after SVD reduction (2-4 for visualization)
         """
         self.data_path = data_path
-        if features_to_use is not None and not (2 <= len(features_to_use) <= 4):
-            raise ValueError("Number of features must be between 2 and 4")
+        if n_components is not None and not (2 <= n_components <= 4):
+            raise ValueError("Number of components for visualization must be between 2 and 4")
         self.features_to_use = features_to_use
         self.max_k = max_k
         self.n_components = n_components
@@ -37,17 +37,13 @@ class StockClusterer:
         
         # If no features specified, use all numeric columns
         if self.features_to_use is None:
-            numeric_columns = self.data.select_dtypes(include=[np.number]).columns.tolist()
-            self.features_to_use = numeric_columns[:min(4, len(numeric_columns))]
+            self.features_to_use = self.data.select_dtypes(include=[np.number]).columns.tolist()
             
         # Normalize the features
         self.scaled_features = self.scaler.fit_transform(self.data[self.features_to_use])
         self.scaled_data = pd.DataFrame(self.scaled_features, columns=self.features_to_use)
         
         # Perform SVD dimensionality reduction
-        if self.n_components is None:
-            self.n_components = min(len(self.features_to_use), 4)  # Default to number of features or 4
-        
         self.svd_model = TruncatedSVD(n_components=self.n_components, random_state=42)
         self.reduced_data = self.svd_model.fit_transform(self.scaled_data)
         
@@ -265,41 +261,43 @@ class StockClusterer:
 
 # Example usage
 if __name__ == "__main__":
-    # Example features to use (modify as needed)
-    FEATURES_TO_USE = ['2024-Net Interest Income', '2024-Operating Expense', '2024-Normalized EBITDA']  # Replace with your actual feature names
     DATA_PATH = "data.csv"  # Replace with your data path
     
-    try:
-        # Initialize and run clustering
-        clusterer = StockClusterer(DATA_PATH, features_to_use=FEATURES_TO_USE, max_k=10, n_components=2)
-        
-        # Load and prepare data
-        clusterer.load_and_prepare_data()
-        
-        # Find optimal k using elbow method
-        clusterer.find_optimal_k()
-        
-        # Get optimal k from user with error handling
-        while True:
-            try:
-                optimal_k = int(input("\nEnter the optimal number of clusters based on the elbow plot: "))
-                if 1 <= optimal_k <= clusterer.max_k:
-                    break
-                else:
-                    print(f"Please enter a number between 1 and {clusterer.max_k}")
-            except ValueError:
-                print("Please enter a valid number")
-        
-        # Perform clustering
-        clusters = clusterer.perform_clustering(optimal_k)
-        
-        # Plot clusters
-        clusterer.plot_clusters()
-        
-        # Analyze clusters
-        cluster_analysis = clusterer.analyze_clusters()
-        
-    except FileNotFoundError:
-        print(f"Error: Could not find the data file at {DATA_PATH}")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
+    # Example features to use (can be any number of features)
+    FEATURES_TO_USE = [
+        '2024-Net Income From Continuing Operation Net Minority Interest',
+        '2024-Normalized EBITDA',
+        '2024-Operating Expense',
+        '2024-Net Interest Income',
+        '2024-Diluted EPS',
+        '2024-Tax Rate For Calcs'
+    ]
+    
+    # Initialize and run clustering with 2 components for visualization
+    clusterer = StockClusterer(DATA_PATH, features_to_use=FEATURES_TO_USE, max_k=10, n_components=2)
+    
+    # Load and prepare data
+    clusterer.load_and_prepare_data()
+    
+    # Find optimal k using elbow method
+    clusterer.find_optimal_k()
+    
+    # Get optimal k from user with error handling
+    while True:
+        try:
+            optimal_k = int(input("\nEnter the optimal number of clusters based on the elbow plot: "))
+            if 1 <= optimal_k <= clusterer.max_k:
+                break
+            else:
+                print(f"Please enter a number between 1 and {clusterer.max_k}")
+        except ValueError:
+            print("Please enter a valid number")
+    
+    # Perform clustering
+    clusters = clusterer.perform_clustering(optimal_k)
+    
+    # Plot clusters
+    clusterer.plot_clusters()
+    
+    # Analyze clusters
+    cluster_analysis = clusterer.analyze_clusters()

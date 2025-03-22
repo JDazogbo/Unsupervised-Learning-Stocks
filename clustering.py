@@ -220,11 +220,21 @@ class StockClusterer:
             if cont:
                 pos = scatter.get_offsets()[ind["ind"][0]]
                 annot.xy = pos
-                text = f"Ticker: {self.data.iloc[ind['ind'][0]].get('Ticker', 'N/A')}\n"
-                text += f"Industry: {self.data.iloc[ind['ind'][0]].get('Industry', 'N/A')}\n"
-                text += f"Cluster: {self.data.iloc[ind['ind'][0]]['cluster']}\n"
-                for i, feature in enumerate(self.features_to_use):
-                    text += f"{feature}: {self.data.iloc[ind['ind'][0]][feature]:.2f}\n"
+                row = self.data.iloc[ind['ind'][0]]
+                text = f"Ticker: {row.get('Ticker', 'N/A')}\n"
+                text += f"Industry: {row.get('Industry', 'N/A')}\n"
+                
+                # Handle share price formatting
+                share_price = row.get('Current Share Price', 'N/A')
+                if share_price != 'N/A':
+                    try:
+                        share_price = float(share_price)
+                        text += f"Share Price: ${share_price:.2f}"
+                    except (ValueError, TypeError):
+                        text += f"Share Price: {share_price}"
+                else:
+                    text += "Share Price: N/A"
+                
                 annot.set_text(text)
                 annot.set_visible(True)
                 plt.draw()

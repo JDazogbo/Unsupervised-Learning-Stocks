@@ -5,9 +5,10 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
+from sklearn.decomposition import TruncatedSVD
 
 class StockClusterer:
-    def __init__(self, data_path, features_to_use=None, max_k=10):
+    def __init__(self, data_path, features_to_use=None, max_k=10, n_components=None):
         """
         Initialize the clusterer with data path and features to use
         
@@ -15,15 +16,19 @@ class StockClusterer:
             data_path (str): Path to the CSV data file
             features_to_use (list): List of column names to use for clustering (2-4 features)
             max_k (int): Maximum number of clusters to try in elbow method
+            n_components (int): Number of components to keep after SVD reduction
         """
         self.data_path = data_path
         if features_to_use is not None and not (2 <= len(features_to_use) <= 4):
             raise ValueError("Number of features must be between 2 and 4")
         self.features_to_use = features_to_use
         self.max_k = max_k
+        self.n_components = n_components
         self.data = None
         self.scaler = StandardScaler()
         self.kmeans_model = None
+        self.svd_model = None
+        self.reduced_data = None
         
     def load_and_prepare_data(self):
         """Load and prepare the data for clustering"""
@@ -39,7 +44,31 @@ class StockClusterer:
         self.scaled_features = self.scaler.fit_transform(self.data[self.features_to_use])
         self.scaled_data = pd.DataFrame(self.scaled_features, columns=self.features_to_use)
         
-        return self.scaled_data
+        # Perform SVD dimensionality reduction
+        if self.n_components is None:
+            self.n_components = min(len(self.features_to_use), 4)  # Default to number of features or 4
+        
+        self.svd_model = TruncatedSVD(n_components=self.n_components, random_state=42)
+        self.reduced_data = self.svd_model.fit_transform(self.scaled_data)
+        
+        # Calculate explained variance ratio
+        explained_variance_ratio = self.svd_model.explained_variance_ratio_
+        cumulative_variance_ratio = np.cumsum(explained_variance_ratio)
+        
+        # Plot explained variance
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(1, len(cumulative_variance_ratio) + 1), cumulative_variance_ratio, 'bo-')
+        plt.xlabel('Number of Components')
+        plt.ylabel('Cumulative Explained Variance Ratio')
+        plt.title('SVD: Cumulative Explained Variance')
+        plt.grid(True)
+        plt.show()
+        
+        print("\nExplained variance ratio for each component:")
+        for i, (var, cum_var) in enumerate(zip(explained_variance_ratio, cumulative_variance_ratio), 1):
+            print(f"Component {i}: {var:.4f} (Cumulative: {cum_var:.4f})")
+        
+        return self.reduced_data
     
     def find_optimal_k(self):
         """Use elbow method to find optimal number of clusters"""
@@ -48,7 +77,7 @@ class StockClusterer:
         
         for k in K_range:
             kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-            kmeans.fit(self.scaled_data)
+            kmeans.fit(self.reduced_data)
             distortions.append(kmeans.inertia_)
             
         # Plot elbow curve
@@ -65,7 +94,7 @@ class StockClusterer:
     def perform_clustering(self, n_clusters):
         """Perform KMeans clustering with specified number of clusters"""
         self.kmeans_model = KMeans(n_clusters=n_clusters, init='k-means++', random_state=42, n_init=10)
-        self.data['cluster'] = self.kmeans_model.fit_predict(self.scaled_data)
+        self.data['cluster'] = self.kmeans_model.fit_predict(self.reduced_data)
         
         return self.data['cluster']
     
@@ -73,7 +102,7 @@ class StockClusterer:
         """
         Plot clusters using available features. Supports 2D, 3D (with color), and 4D (3D with color) visualizations
         """
-        n_features = len(self.features_to_use)
+        n_features = self.n_components
         
         if n_features == 2:
             self._plot_2d()
@@ -82,24 +111,23 @@ class StockClusterer:
         elif n_features == 4:
             self._plot_4d_as_3d()
         else:
-            raise ValueError("Number of features must be between 2 and 4")
+            raise ValueError("Number of components must be between 2 and 4")
     
     def _plot_2d(self):
         """Plot 2D visualization"""
         plt.figure(figsize=(12, 8))
         scatter = plt.scatter(
-            self.data[self.features_to_use[0]], 
-            self.data[self.features_to_use[1]], 
+            self.reduced_data[:, 0], 
+            self.reduced_data[:, 1], 
             c=self.data['cluster'],
             cmap='viridis',
             edgecolor='k',
             s=100
         )
         
-        plt.xlabel(self.features_to_use[0])
-        plt.ylabel(self.features_to_use[1])
-        plt.title('2D Cluster Visualization')
-        plt.colorbar(scatter, label='Cluster')
+        plt.xlabel('First Principal Component')
+        plt.ylabel('Second Principal Component')
+        plt.title('2D Cluster Visualization (SVD Components)')
         plt.grid(True)
         self._add_hover_annotations(scatter)
         plt.show()
@@ -108,25 +136,24 @@ class StockClusterer:
         """Plot 3D data on 2D plane with color encoding third dimension"""
         plt.figure(figsize=(12, 8))
         scatter = plt.scatter(
-            self.data[self.features_to_use[0]], 
-            self.data[self.features_to_use[1]], 
-            c=self.data[self.features_to_use[2]],
+            self.reduced_data[:, 0], 
+            self.reduced_data[:, 1], 
+            c=self.data['cluster'],
             s=100,
-            cmap='coolwarm',
+            cmap='viridis',
             edgecolor='k'
         )
         
-        plt.xlabel(self.features_to_use[0])
-        plt.ylabel(self.features_to_use[1])
-        plt.title('3D Data Visualization (Color: {})'.format(self.features_to_use[2]))
-        plt.colorbar(scatter, label=self.features_to_use[2])
+        plt.xlabel('First Principal Component')
+        plt.ylabel('Second Principal Component')
+        plt.title('3D Data Visualization (SVD Components)')
         
         # Add cluster information
         for cluster in range(self.kmeans_model.n_clusters):
-            cluster_points = self.data[self.data['cluster'] == cluster]
+            cluster_points = self.reduced_data[self.data['cluster'] == cluster]
             plt.scatter(
-                cluster_points[self.features_to_use[0]].mean(),
-                cluster_points[self.features_to_use[1]].mean(),
+                cluster_points[:, 0].mean(),
+                cluster_points[:, 1].mean(),
                 marker='*',
                 s=200,
                 c='red',
@@ -144,27 +171,26 @@ class StockClusterer:
         ax = fig.add_subplot(111, projection='3d')
         
         scatter = ax.scatter(
-            self.data[self.features_to_use[0]],
-            self.data[self.features_to_use[1]],
-            self.data[self.features_to_use[2]],
-            c=self.data[self.features_to_use[3]],
-            cmap='coolwarm',
+            self.reduced_data[:, 0],
+            self.reduced_data[:, 1],
+            self.reduced_data[:, 2],
+            c=self.data['cluster'],
+            cmap='viridis',
             s=100
         )
         
-        ax.set_xlabel(self.features_to_use[0])
-        ax.set_ylabel(self.features_to_use[1])
-        ax.set_zlabel(self.features_to_use[2])
-        plt.title('4D Data Visualization (Color: {})'.format(self.features_to_use[3]))
-        plt.colorbar(scatter, label=self.features_to_use[3])
+        ax.set_xlabel('First Principal Component')
+        ax.set_ylabel('Second Principal Component')
+        ax.set_zlabel('Third Principal Component')
+        plt.title('4D Data Visualization (SVD Components)')
         
         # Add cluster centers
         for cluster in range(self.kmeans_model.n_clusters):
-            cluster_points = self.data[self.data['cluster'] == cluster]
+            cluster_points = self.reduced_data[self.data['cluster'] == cluster]
             ax.scatter(
-                cluster_points[self.features_to_use[0]].mean(),
-                cluster_points[self.features_to_use[1]].mean(),
-                cluster_points[self.features_to_use[2]].mean(),
+                cluster_points[:, 0].mean(),
+                cluster_points[:, 1].mean(),
+                cluster_points[:, 2].mean(),
                 marker='*',
                 s=200,
                 c='red',
@@ -197,7 +223,7 @@ class StockClusterer:
                 text = f"Ticker: {self.data.iloc[ind['ind'][0]].get('Ticker', 'N/A')}\n"
                 text += f"Industry: {self.data.iloc[ind['ind'][0]].get('Industry', 'N/A')}\n"
                 text += f"Cluster: {self.data.iloc[ind['ind'][0]]['cluster']}\n"
-                for feature in self.features_to_use:
+                for i, feature in enumerate(self.features_to_use):
                     text += f"{feature}: {self.data.iloc[ind['ind'][0]][feature]:.2f}\n"
                 annot.set_text(text)
                 annot.set_visible(True)
@@ -233,23 +259,37 @@ if __name__ == "__main__":
     FEATURES_TO_USE = ['2024-Net Interest Income', '2024-Operating Expense', '2024-Normalized EBITDA']  # Replace with your actual feature names
     DATA_PATH = "data.csv"  # Replace with your data path
     
-    # Initialize and run clustering
-    clusterer = StockClusterer(DATA_PATH, features_to_use=FEATURES_TO_USE, max_k=10)
-    
-    # Load and prepare data
-    clusterer.load_and_prepare_data()
-    
-    # Find optimal k using elbow method
-    clusterer.find_optimal_k()
-    
-    # Let user input optimal k based on elbow plot
-    optimal_k = int(input("Enter the optimal number of clusters based on the elbow plot: "))
-    
-    # Perform clustering
-    clusters = clusterer.perform_clustering(optimal_k)
-    
-    # Plot clusters
-    clusterer.plot_clusters()
-    
-    # Analyze clusters
-    cluster_analysis = clusterer.analyze_clusters()
+    try:
+        # Initialize and run clustering
+        clusterer = StockClusterer(DATA_PATH, features_to_use=FEATURES_TO_USE, max_k=10, n_components=2)
+        
+        # Load and prepare data
+        clusterer.load_and_prepare_data()
+        
+        # Find optimal k using elbow method
+        clusterer.find_optimal_k()
+        
+        # Get optimal k from user with error handling
+        while True:
+            try:
+                optimal_k = int(input("\nEnter the optimal number of clusters based on the elbow plot: "))
+                if 1 <= optimal_k <= clusterer.max_k:
+                    break
+                else:
+                    print(f"Please enter a number between 1 and {clusterer.max_k}")
+            except ValueError:
+                print("Please enter a valid number")
+        
+        # Perform clustering
+        clusters = clusterer.perform_clustering(optimal_k)
+        
+        # Plot clusters
+        clusterer.plot_clusters()
+        
+        # Analyze clusters
+        cluster_analysis = clusterer.analyze_clusters()
+        
+    except FileNotFoundError:
+        print(f"Error: Could not find the data file at {DATA_PATH}")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")

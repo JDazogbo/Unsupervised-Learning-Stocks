@@ -255,7 +255,6 @@ class StockClusterer:
 if __name__ == "__main__":
     DATA_PATH = "data.csv"  # Replace with your data path
     
-    # Example features to use (can be any number of features)
     FEATURES_TO_USE = [
         # Current Data, to be compared
         # '2024-Net Income From Continuing Operation Net Minority Interest',
@@ -301,6 +300,11 @@ if __name__ == "__main__":
     # Perform clustering
     clusters = clusterer.perform_clustering(optimal_k)
     
+    # Save the normalized data with clusters
+    preprocessed_df = clusterer.scaled_data.copy()
+    preprocessed_df['cluster'] = clusters.values
+    preprocessed_df.to_csv('preprocessedData.csv', index=False)
+
     # Plot clusters
     clusterer.plot_clusters()
     

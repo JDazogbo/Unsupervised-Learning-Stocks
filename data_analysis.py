@@ -32,7 +32,7 @@ financial_metrics = apple_finance.index.values
 expected_columns = [f"{year}-{metric}" for year in years for metric in financial_metrics]
 
 # Initialize DataFrame with proper structure
-financials_df = pd.DataFrame(columns=['Ticker', 'Industry'] + expected_columns + [f"{year}-{metric}_pct" for year in years for metric in financial_metrics])
+financials_df = pd.DataFrame(columns=['Ticker', 'Industry'] + expected_columns)
 
 # Iterate through each company in the S&P 500
 for i, company in sp500_df.iterrows():
@@ -69,7 +69,6 @@ for i, company in sp500_df.iterrows():
 print(financials_df.head(10), "\n")
 print(financials_df.info(), "\n")
 print(financials_df.describe(), "\n\n")
-
 
 ###### Data Cleaning ######
 

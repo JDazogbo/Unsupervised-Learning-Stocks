@@ -8,7 +8,7 @@ import seaborn as sns
 from sklearn.decomposition import TruncatedSVD
 
 class StockClusterer:
-    def __init__(self, data_path, features_to_use=None, max_k=10, n_components=2):
+    def __init__(self, data_path, features_to_use=None, max_k=10):
         """
         Initialize the clusterer with data path and features to use
         
@@ -16,14 +16,11 @@ class StockClusterer:
             data_path (str): Path to the CSV data file
             features_to_use (list): List of column names to use for clustering (can be any number of features)
             max_k (int): Maximum number of clusters to try in elbow method
-            n_components (int): Number of components to keep after SVD reduction (2-4 for visualization)
         """
         self.data_path = data_path
-        if n_components is not None and not (2 <= n_components <= 4):
-            raise ValueError("Number of components for visualization must be between 2 and 4")
         self.features_to_use = features_to_use
         self.max_k = max_k
-        self.n_components = n_components
+        self.n_components = 2
         self.data = None
         self.scaler = StandardScaler()
         self.kmeans_model = None
@@ -88,18 +85,14 @@ class StockClusterer:
     
     def plot_clusters(self):
         """
-        Plot clusters using available features. Supports 2D, 3D (with color), and 4D (3D with color) visualizations
+        Plot clusters using available features. Supports 2D visualizations
         """
         n_features = self.n_components
         
         if n_features == 2:
             self._plot_2d()
-        elif n_features == 3:
-            self._plot_3d_as_2d()
-        elif n_features == 4:
-            self._plot_4d_as_3d()
         else:
-            raise ValueError("Number of components must be between 2 and 4")
+            raise ValueError("Number of components must be 2")
     
     def _plot_2d(self):
         """Plot 2D visualization"""
@@ -118,75 +111,6 @@ class StockClusterer:
         plt.title('2D Cluster Visualization (SVD Components)')
         plt.grid(True)
         self._add_hover_annotations(scatter)
-        plt.show()
-    
-    def _plot_3d_as_2d(self):
-        """Plot 3D data on 2D plane with color encoding third dimension"""
-        plt.figure(figsize=(12, 8))
-        scatter = plt.scatter(
-            self.reduced_data[:, 0], 
-            self.reduced_data[:, 1], 
-            c=self.data['cluster'],
-            s=100,
-            cmap='viridis',
-            edgecolor='k'
-        )
-        
-        plt.xlabel('First Principal Component')
-        plt.ylabel('Second Principal Component')
-        plt.title('3D Data Visualization (SVD Components)')
-        
-        # Add cluster information
-        for cluster in range(self.kmeans_model.n_clusters):
-            cluster_points = self.reduced_data[self.data['cluster'] == cluster]
-            plt.scatter(
-                cluster_points[:, 0].mean(),
-                cluster_points[:, 1].mean(),
-                marker='*',
-                s=200,
-                c='red',
-                label=f'Cluster {cluster} Center'
-            )
-        
-        plt.legend()
-        plt.grid(True)
-        self._add_hover_annotations(scatter)
-        plt.show()
-    
-    def _plot_4d_as_3d(self):
-        """Plot 4D data using 3D visualization with color"""
-        fig = plt.figure(figsize=(12, 8))
-        ax = fig.add_subplot(111, projection='3d')
-        
-        scatter = ax.scatter(
-            self.reduced_data[:, 0],
-            self.reduced_data[:, 1],
-            self.reduced_data[:, 2],
-            c=self.data['cluster'],
-            cmap='viridis',
-            s=100
-        )
-        
-        ax.set_xlabel('First Principal Component')
-        ax.set_ylabel('Second Principal Component')
-        ax.set_zlabel('Third Principal Component')
-        plt.title('4D Data Visualization (SVD Components)')
-        
-        # Add cluster centers
-        for cluster in range(self.kmeans_model.n_clusters):
-            cluster_points = self.reduced_data[self.data['cluster'] == cluster]
-            ax.scatter(
-                cluster_points[:, 0].mean(),
-                cluster_points[:, 1].mean(),
-                cluster_points[:, 2].mean(),
-                marker='*',
-                s=200,
-                c='red',
-                label=f'Cluster {cluster} Center'
-            )
-        
-        ax.legend()
-        plt.grid(True)
         plt.show()
     
     def _add_hover_annotations(self, scatter):
@@ -257,28 +181,23 @@ if __name__ == "__main__":
     
     FEATURES_TO_USE = [
         # Current Data, to be compared
-        # '2024-Net Income From Continuing Operation Net Minority Interest',
-        # '2024-Normalized EBITDA',
         '2024-Operating Expense',
         '2024-Net Interest Income',
         '2024-Diluted EPS',
 
-        # # Historical Data, for trends over time
+        # Historical Data, for trends over time
         '2023-Tax Rate For Calcs',
         '2022-Tax Rate For Calcs',
         '2021-Operating Expense',
-        # '2021-Tax Rate For Calcs',
 
         # Normalized Data, for comparison
         '2024-Net Income From Continuing Operation Net Minority Interest_pct',
         '2024-Operating Expense_pct',
         '2024-Net Interest Income_pct',
     ]
-
-
     
     # Initialize and run clustering with 2 components for visualization
-    clusterer = StockClusterer(DATA_PATH, features_to_use=FEATURES_TO_USE, max_k=20, n_components=2)
+    clusterer = StockClusterer(DATA_PATH, features_to_use=FEATURES_TO_USE, max_k=20)
     
     # Load and prepare data
     clusterer.load_and_prepare_data()

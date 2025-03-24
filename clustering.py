@@ -107,6 +107,7 @@ class StockClusterer:
         plt.xlabel('First Principal Component')
         plt.ylabel('Second Principal Component')
         plt.title('2D Cluster Visualization (SVD Components)')
+        plt.colorbar(label="Cluster Label")
         plt.grid(True)
         self._add_hover_annotations(scatter)
         plt.show()
@@ -133,17 +134,6 @@ class StockClusterer:
                 row = self.data.iloc[ind['ind'][0]]
                 text = f"Ticker: {row.get('Ticker', 'N/A')}\n"
                 text += f"Industry: {row.get('Industry', 'N/A')}\n"
-                
-                # Handle share price formatting
-                share_price = row.get('Current Share Price', 'N/A')
-                if share_price != 'N/A':
-                    try:
-                        share_price = float(share_price)
-                        text += f"Share Price: ${share_price:.2f}"
-                    except (ValueError, TypeError):
-                        text += f"Share Price: {share_price}"
-                else:
-                    text += "Share Price: N/A"
                 
                 annot.set_text(text)
                 annot.set_visible(True)

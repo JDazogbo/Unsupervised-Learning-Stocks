@@ -17,7 +17,7 @@ x_data = df.drop('cluster', axis=1)
 y_data = df['cluster']
 
 # Split data into training and testing sets
-x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.2, random_state=7)
+x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.2, random_state=11)
 
 # Initialize LazyClassifier
 classifier = LazyClassifier(verbose=0, ignore_warnings=False, custom_metric=None)

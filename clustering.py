@@ -3,8 +3,6 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import seaborn as sns
 from sklearn.decomposition import TruncatedSVD
 
 class StockClusterer:

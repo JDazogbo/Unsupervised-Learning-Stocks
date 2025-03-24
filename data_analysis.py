@@ -115,8 +115,8 @@ for expectation in [expectation1, expectation2, expectation3, expectation4, expe
 # Missing Values Heatmap
 print(financials_df.info(), "\n")
 plt.figure(figsize=(15, 6))
-sns.heatmap(financials_df.isnull(), cbar=False, cmap='viridis')
-plt.title("Missing Values Heatmap Not Cleaned")
+sns.heatmap(financials_df.iloc[:len(financials_df)//4].isnull(), cbar=False, cmap='viridis')
+plt.title("Missing Values Heatmap Not Cleaned (First Quarter)")
 plt.show()
 
 # Drop rows with 30% or more missing values
@@ -239,8 +239,8 @@ for expectation in [expectation1, expectation2, expectation3, expectation4, expe
 # Missing Values Heatmap
 print(financials_df.info(), "\n")
 plt.figure(figsize=(15, 6))
-sns.heatmap(financials_df.isnull(), cbar=False, cmap='viridis')
-plt.title("Missing Values Heatmap")
+sns.heatmap(financials_df.iloc[:len(financials_df)//4].isnull(), cbar=False, cmap='viridis')
+plt.title("Missing Values Heatmap Cleaned (First Quarter)")
 plt.show()
 
 # Industry Frequency Bar Plot
@@ -270,7 +270,8 @@ plt.show()
 
 # Correlation Matrix Heatmap
 plt.figure(figsize=(14, 10))
-correlation_matrix = financials_df.corr(numeric_only=True)
+financials_df_no_pct = financials_df.loc[:, ~financials_df.columns.str.endswith('_pct')]  # excluding _pct columns
+correlation_matrix = financials_df_no_pct.corr(numeric_only=True)
 sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5, vmin=-1, vmax=1)
 plt.title("Correlation Matrix of Financial Metrics", fontsize=14, fontweight="bold")
 plt.xticks(ha="right", fontsize=5)
